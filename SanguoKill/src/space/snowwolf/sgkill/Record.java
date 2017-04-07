@@ -1,9 +1,13 @@
 package space.snowwolf.sgkill;
 
+import java.util.Arrays;
 import java.util.List;
 
 import space.snowwolf.sgkill.GameOverException.VictoryStatus;
-import space.snowwolf.sgkill.constant.CardName;
+import space.snowwolf.sgkill.card.Card;
+import space.snowwolf.sgkill.card.basic.杀;
+import space.snowwolf.sgkill.constant.Identity;
+import space.snowwolf.sgkill.constant.RecordLevel;
 import space.snowwolf.sgkill.constant.RecordType;
 import space.snowwolf.sgkill.constant.State;
 import space.snowwolf.sgkill.player.Player;
@@ -18,6 +22,7 @@ public class Record {
 	int num;
 	VictoryStatus victory;
 	List<Player> winners;
+	RecordLevel level;
 	
 	/**
 	 * 游戏结束
@@ -60,15 +65,29 @@ public class Record {
 	}
 	
 	/**
-	 * 1、游戏开始
-	 * 2.求救
+	 * 游戏开始，用于记录日志
 	 * @param type
-	 * @param p
+	 * @param 主公
+	 * @param players
 	 */
-	public Record(RecordType type, Player player) {
+	public Record(RecordType type, Player 主公, Player[] players) {
 		this.type = type;
-		this.src = player;
+		this.src = 主公;
+		this.winners = Arrays.asList(players);
 	}
+	
+	/**
+	 * 游戏开始，用于向一人宣告另一人身份
+	 * @param type
+	 * @param 主公
+	 * @param player
+	 */
+	public Record(RecordType type, Player src, Player dest) {
+		this.type = type;
+		this.src = src;
+		this.dest = dest;
+	}
+	
 	
 	/**
 	 * 状态改变
@@ -83,7 +102,7 @@ public class Record {
 	}
 
 	/**
-	 * 弃牌
+	 * 摸牌、弃牌
 	 * @param player
 	 * @param card
 	 */
@@ -94,6 +113,16 @@ public class Record {
 	}
 	
 	/**
+	 * 求救
+	 * @param type
+	 * @param player
+	 */
+	public Record(RecordType type, Player player) {
+		this.type = type;
+		this.src = player;
+	}
+
+	/**
 	 * 将记录对象转换成字符串用于打印日志
 	 */
 	@Override
@@ -102,12 +131,14 @@ public class Record {
 		switch(type) {
 		case 状态变化:
 			return src.toString() + state.toString();
+		case 摸牌:
+			return src.toString() + "摸到" + card.toString();
 		case 出牌:
 			return new StringBuilder(src.toString()).append("对").append(dest).append("出").append(card).toString();
 		case 弃牌:
 			return src + "丢弃" + card;
 		case 受到伤害:
-			if(card.getName() == CardName.杀) {
+			if(card instanceof 杀) {
 				return new StringBuilder(dest.toString()).append("受到").append(num).append("点伤害").toString();
 			}
 		case 求救:
@@ -117,7 +148,17 @@ public class Record {
 		case 死亡:
 			return src + "死亡，身份是" + src.getIdentity(null);
 		case 游戏开始:
-			return "游戏开始 " + src.getName() + "身份是主公";
+			b = new StringBuilder("游戏开始，").append(src.getName() + "身份是主公").append("\n");
+			if(winners != null) {
+				for(Player p : winners) {
+					if(p.getIdentity(null) != Identity.主公) {
+						b.append(p.getName() + "身份是" + p.getIdentity(p)).append("\n");
+					}
+				}
+			} else {
+				b.append(dest.getName() + "身份是" + dest.getIdentity(dest)).append("\n");
+			}
+			return "游戏开始 " + src.getName() + "身份是" + src.getIdentity(null);
 		case 游戏结束:
 			b = new StringBuilder("游戏结束 ");
 			switch (victory) {
@@ -140,6 +181,10 @@ public class Record {
 			break;
 		}
 		return null;
+	}
+	
+	public RecordLevel getLevel() {
+		return level;
 	}
 
 	public RecordType getType() {

@@ -1,21 +1,21 @@
 package space.snowwolf.sgkill.player.ai;
 
+import space.snowwolf.sgkill.Controller;
 import space.snowwolf.sgkill.constant.Identity;
 import space.snowwolf.sgkill.player.Player;
-import space.snowwolf.sgkill.player.TableIterator;
 
 public class 反贼 extends ComputerPlayer {
 
-	public 反贼(String name, int index, Identity identity) {
-		super(name, index, identity);
+	protected 反贼(String name, int index, Identity identity, Controller controller) {
+		super(name, index, identity, controller);
 	}
 
 	@Override
 	protected Player searchEnemy() {
-		TableIterator it = table.iterator(this);
-		for(int i=0;i<it.size();i++, it.forward()) {
-			if(identities[it.index()] == Identity.主公) {
-				return it.value();
+		Player[] table = controller.getTable();
+		for(int i=0;i<table.length;i++) {
+			if(identities[table[i].getIndex()] == Identity.主公) {
+				return table[i];
 			}
 		}
 		return null;

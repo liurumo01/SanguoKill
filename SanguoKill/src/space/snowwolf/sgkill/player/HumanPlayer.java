@@ -1,127 +1,113 @@
 package space.snowwolf.sgkill.player;
 
-import space.snowwolf.sgkill.Card;
-import space.snowwolf.sgkill.CardDispatcher;
-import space.snowwolf.sgkill.Main;
-import space.snowwolf.sgkill.constant.CardName;
-import space.snowwolf.sgkill.constant.Identity;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.List;
 
-@Deprecated
+import space.snowwolf.common.utils.ArrayUtils;
+import space.snowwolf.common.utils.InputReader;
+import space.snowwolf.common.utils.StringUtils;
+import space.snowwolf.sgkill.Controller;
+import space.snowwolf.sgkill.card.Card;
+import space.snowwolf.sgkill.constant.Identity;
+import space.snowwolf.sgkill.constant.Message;
+import space.snowwolf.sgkill.constant.State;
+
 public class HumanPlayer extends Player {
 
-	public HumanPlayer(String 昵称, int index, Identity identity) {
-		super(昵称, index, identity);
+	private OutputStream out;
+	private InputReader reader;
+
+	public HumanPlayer(String 昵称, int index, Identity identity, Controller controller) {
+		super(昵称, identity, controller);
 	}
-	
-	@Override
-	public void 出牌(CardDispatcher it) {
-		super.出牌(it);
-		boolean kill = false;
-		while (true) {
-			showCards("弃牌");
-			int t = Main.input.nextInt();
-			if (t < 0 || t > cards.size()) {
-				System.out.println("选择有误，请重新选择");
-			} else if (t == cards.size()) {
-				break;
-			} else {
-				if (cards.get(t).getName() == CardName.杀) {
-					if (kill) {
-						System.out.println("只能出一次杀");
-					} else {
-//						Card x = cards.remove(t);
-						kill = true;
-						System.out.println(this + "出杀");
-//						p[1 - index].handle(this, x);
-					}
-				} else if (cards.get(t).getName() == CardName.闪) {
-					System.out.println("不能主动出闪");
-				} else if (cards.get(t).getName() == CardName.桃) {
-					if (health >= 0 && health < 4) {
-						cards.remove(t);
-						System.out.println(this + "出桃");
-						health++;
-					} else {
-						System.out.println("未损失血量不能出桃");
-					}
-				}
+
+	private String[] createShowCardOptions(String... others) {
+		List<String> options = new ArrayList<String>();
+		for (int i = 0; i < cards.size(); i++) {
+			options.add(cards.get(i).toString());
+		}
+		for (String str : others) {
+			options.add(str);
+		}
+		return options.toArray(new String[0]);
+	}
+
+	private String[] createSelectPlayerOptions(String... others) {
+		List<String> options = new ArrayList<String>();
+		Player[] table = controller.getTable();
+		for (int i = 0; i < table.length; i++) {
+			if(table[i] != this) {
+				options.add(table[i].getName());				
 			}
 		}
-	}
-	
-	@Override
-	public void 弃牌() {
-		super.弃牌();
-		while (cards.size() > health) {
-			showCards();
-			int t = Main.input.nextInt();
-			if (t < 0 || t >= cards.size()) {
-				System.out.println("选择有误，请重新选择");
-			} else {
-				Card x = cards.remove(t);
-				System.out.println(this + "丢弃" + x);
-			}
+		for (String str : others) {
+			options.add(str);
 		}
+		return options.toArray(new String[0]);
 	}
-	
+
 	@Override
-	public void handle(Player source, Card card) {
+	public Card selectCard() {
+		return selectCard(null);
+	}
+
+	@Override
+	public Card selectCard(Player dest, Class<?> ... classes) {
+		Card x = null;
 		while (true) {
-			showCards("放弃");
-			int t = Main.input.nextInt();
-			if (t < 0 || t > cards.size()) {
-				System.out.println("选择有误，请重新选择");
-			} else if (t == cards.size()) {
-				System.out.println(this + "放弃，血量减1");
-				health--;
-				if(health == 0) {
-					System.out.println(this + "濒死，请求出桃");
-					while(true) {
-						showCards("放弃");
-						t = Main.input.nextInt();
-						if(t == cards.size()) {
-							System.out.println(this + "放弃");
-							break;
-						}
-						if(cards.get(t).getName() != CardName.桃) {
-							System.out.println("只能出桃");
-						} else {
-							health++;
-							break;
-						}
-					}
-//					if(health == 0) {
-//						throw new GameOverException();						
-//					}
-				}
-				break;
+			int t = reader.choose("请选择", createShowCardOptions(controller.getCurrentPlayer() == this && controller.getState() != State.求救 ? "弃牌" : "放弃", "标识身份"));
+			if (t == cards.size() + 1) {
+				setEnd(true);
+				return null;
+			} else if (t == cards.size() + 2) {
+				t = reader.choose("请选择要标识的玩家", createSelectPlayerOptions());
+				int u = reader.choose("请选择", "忠臣", "内奸", "反贼");
+				Identity[] options = { Identity.忠臣, Identity.内奸, Identity.反贼 };
+				identities[t - 1] = options[u - 1];
 			} else {
-				if (cards.get(t).getName() == CardName.闪) {
-					System.out.println(this + "出闪");
-					cards.remove(t);
-					break;
+				x = cards.get(t - 1);
+				if (classes == null || classes.length == 0 || ArrayUtils.index(classes, x.getClass()) >= 0) {
+					return x;
 				} else {
-					System.out.println("只能出闪");
+					Object[] options = new Object[classes.length];
+					for(int i=0;i<options.length;i++) {
+						options[i] = classes[i].getSimpleName();
+					}
+					System.out.println("需要出" + StringUtils.connect('/', options));
 				}
 			}
-		}
-	}
-	
-	private void showCards(String... others) {
-		int i;
-		System.out.println("请选择：");
-		for (i = 0; i < cards.size(); i++) {
-			System.out.println("[" + i + "]" + cards.get(i));
-		}
-		for (String choice : others) {
-			System.out.println("[" + i++ + "]" + choice);
 		}
 	}
 
 	@Override
-	public boolean rescue(Player p) {
-		// TODO Auto-generated method stub
-		return false;
+	public Player selectPlayer() {
+		int result = reader.choose("请选择对象：", createSelectPlayerOptions()) - 1;
+		Player[] table = controller.getTable();
+		if(result >= ArrayUtils.index(table, this)) {
+			//创建选项时会将自己排除在外，因此在得到结果后若被选择的是自己也应该
+			result = (result + 1) % table.length;
+		}
+		return controller.getTable()[result];
 	}
-	
+
+	@Override
+	public void error(Message e) {
+		System.out.println(e);
+	}
+
+	public void setInputStream(InputStream in) {
+		reader = new InputReader();
+		reader.init(in);
+	}
+
+	public OutputStream getOutputStream() {
+		return out;
+	}
+
+	public void setOutputStream(OutputStream out) {
+		this.out = out;
+	}
+
 }
